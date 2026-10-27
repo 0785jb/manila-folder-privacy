@@ -1,0 +1,35 @@
+name: Verify Public Privacy Policy
+on:
+  push:
+    branches: [main]
+    paths:
+      - index.html
+      - .github/workflows/verify-site.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify public HTTPS page and policy content
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL="https://0785jb.github.io/manila-folder-privacy/"
+          for attempt in $(seq 1 8); do
+            echo "Checking public site, attempt $attempt"
+            STATUS=$(curl --location --silent --show-error --output /tmp/manila-policy.html --write-out '%{http_code}' --max-time 25 "$URL") || STATUS="000"
+            if [ "$STATUS" = "200" ] && grep -q "개인정보처리방침" /tmp/manila-policy.html && grep -q "com.manilafolder.archive" /tmp/manila-policy.html && grep -q "078.5jb@gmail.com" /tmp/manila-policy.html; then
+              echo "PUBLIC SITE VERIFIED: HTTP $STATUS, accessible without login"
+              echo "Policy title, package name, contact email: present"
+              echo "URL: $URL"
+              exit 0
+            fi
+            echo "Not ready: HTTP $STATUS"
+            sleep 8
+          done
+          echo "ERROR: Public URL or policy content validation failed"
+          exit 1
